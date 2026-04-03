@@ -71,6 +71,7 @@ lti:
 
 ```bash
 export LTI_CLIENT_ID=SEU_CLIENT_ID
+export APP_BASE_URL=https://seu-dominio
 ```
 
 ---
