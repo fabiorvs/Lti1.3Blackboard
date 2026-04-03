@@ -35,16 +35,13 @@ public class LtiLaunchController {
 
         JWTClaimsSet claims = tokenValidationService.validateLaunch(idToken, state, session);
 
-        Map<String, Object> allClaims = claims.getClaims();
-        List<String> roles = extractRoles(claims.getClaim(ROLES_CLAIM));
-
         LtiUserResponse user = new LtiUserResponse();
         user.setName((String) claims.getClaim("name"));
         user.setEmail((String) claims.getClaim("email"));
-        user.setRoles(roles);
+        user.setRoles(extractRoles(claims.getClaim(ROLES_CLAIM)));
 
         session.setAttribute(LTI_USER, user);
-        session.setAttribute(LTI_CLAIMS, allClaims);
+        session.setAttribute(LTI_CLAIMS, claims.getClaims());
         session.setAttribute(LTI_RAW_TOKEN, idToken);
 
         response.sendRedirect("/me");
