@@ -1,10 +1,12 @@
 package br.dev.fabiorvs.lti.controller;
 
 import br.dev.fabiorvs.lti.model.LtiUserResponse;
+import br.dev.fabiorvs.lti.service.LtiTokenValidationService;
 import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,57 +15,48 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/lti")
+@RequiredArgsConstructor
 public class LtiLaunchController {
+
+    private static final String LTI_USER = "lti_user";
+    private static final String LTI_CLAIMS = "lti_claims";
+    private static final String LTI_RAW_TOKEN = "lti_raw_token";
+    private static final String ROLES_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/roles";
+
+    private final LtiTokenValidationService tokenValidationService;
 
     @PostMapping("/launch")
     public void launch(
             @RequestParam("id_token") String idToken,
             @RequestParam(value = "state", required = false) String state,
             HttpSession session,
-            HttpServletResponse response) throws Exception {
+            HttpServletResponse response
+    ) throws Exception {
 
-        SignedJWT jwt = SignedJWT.parse(idToken);
-        JWTClaimsSet claims = jwt.getJWTClaimsSet();
+        JWTClaimsSet claims = tokenValidationService.validateLaunch(idToken, state, session);
 
         Map<String, Object> allClaims = claims.getClaims();
-
-        Object rolesClaim = claims.getClaim("https://purl.imsglobal.org/spec/lti/claim/roles");
-
-        List<String> roles;
-        if (rolesClaim instanceof List<?> rawList) {
-            roles = rawList.stream().map(String::valueOf).toList();
-        } else if (rolesClaim != null) {
-            roles = List.of(String.valueOf(rolesClaim));
-        } else {
-            roles = List.of();
-        }
+        List<String> roles = extractRoles(claims.getClaim(ROLES_CLAIM));
 
         LtiUserResponse user = new LtiUserResponse();
         user.setName((String) claims.getClaim("name"));
         user.setEmail((String) claims.getClaim("email"));
         user.setRoles(roles);
 
-        session.setAttribute("lti_user", user);
-        session.setAttribute("lti_claims", allClaims);
-        session.setAttribute("lti_raw_token", idToken);
-
-        System.out.println("=== LTI USER ===");
-        System.out.println(user);
-
-        System.out.println("=== LTI CLAIMS ===");
-        System.out.println(allClaims);
+        session.setAttribute(LTI_USER, user);
+        session.setAttribute(LTI_CLAIMS, allClaims);
+        session.setAttribute(LTI_RAW_TOKEN, idToken);
 
         response.sendRedirect("/me");
     }
 
     @GetMapping("/claims")
     public ResponseEntity<?> claims(HttpSession session) {
-        Object claims = session.getAttribute("lti_claims");
+        Object claims = session.getAttribute(LTI_CLAIMS);
 
         if (claims == null) {
-            return ResponseEntity.status(401).body(Map.of(
-                    "error", "Nenhum launch LTI encontrado na sessão"
-            ));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Nenhum launch LTI encontrado na sessão"));
         }
 
         return ResponseEntity.ok(claims);
@@ -71,14 +64,25 @@ public class LtiLaunchController {
 
     @GetMapping("/token")
     public ResponseEntity<?> token(HttpSession session) {
-        Object token = session.getAttribute("lti_raw_token");
+        Object token = session.getAttribute(LTI_RAW_TOKEN);
 
         if (token == null) {
-            return ResponseEntity.status(401).body(Map.of(
-                    "error", "Nenhum token LTI encontrado na sessão"
-            ));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Nenhum token LTI encontrado na sessão"));
         }
 
         return ResponseEntity.ok(Map.of("id_token", token));
+    }
+
+    private List<String> extractRoles(Object rolesClaim) {
+        if (rolesClaim instanceof List<?> rawList) {
+            return rawList.stream().map(String::valueOf).toList();
+        }
+
+        if (rolesClaim != null) {
+            return List.of(String.valueOf(rolesClaim));
+        }
+
+        return List.of();
     }
 }
