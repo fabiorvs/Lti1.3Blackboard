@@ -1,0 +1,48 @@
+# 📦 .gitignore (Spring Boot / Java)
+
+```gitignore
+#Compiled files
+*.class
+
+#Logs
+*.log
+
+#Package files
+*.jar
+*.war
+*.ear
+
+#Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+#Gradle
+.gradle/
+build/
+
+#IDE IntelliJ
+.idea/
+*.iml
+
+#VS Code
+.vscode/
+
+#OS files
+.DS_Store
+Thumbs.db
+
+#Env files
+.env
+.env.*
+*.env
+
+#Application configs sensíveis
+application-local.yml
+application-dev.yml
+
+#Node (se usar frontend depois)
+node_modules/
+
+#Ngrok / arquivos locais
+*.ngrok*
+```

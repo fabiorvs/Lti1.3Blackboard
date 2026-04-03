@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: lti
+
+lti:
+  platform:
+    issuer: https://blackboard.com
+    client-id: ${LTI_CLIENT_ID}
+    jwks-url: https://developer.blackboard.com/api/v1/management/applications/${LTI_CLIENT_ID}/jwks.json
+    oidc-auth-url: https://developer.blackboard.com/api/v1/gateway/oidcauth
+    access-token-url: https://developer.blackboard.com/api/v1/gateway/oauth2/jwttoken
+    signature-alg: RS256
+
+app:
+  base-url: ${APP_BASE_URL}
