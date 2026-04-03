@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 public class LtiPlatformProperties {
     private String issuer;
     private String clientId;
+    private String deploymentId;
     private String jwksUrl;
     private String oidcAuthUrl;
     private String accessTokenUrl;

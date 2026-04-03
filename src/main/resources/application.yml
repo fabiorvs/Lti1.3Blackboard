@@ -6,6 +6,7 @@ lti:
   platform:
     issuer: https://blackboard.com
     client-id: ${LTI_CLIENT_ID}
+    deployment-id: ${LTI_DEPLOYMENT_ID}
     jwks-url: https://developer.blackboard.com/api/v1/management/applications/${LTI_CLIENT_ID}/jwks.json
     oidc-auth-url: https://developer.blackboard.com/api/v1/gateway/oidcauth
     access-token-url: https://developer.blackboard.com/api/v1/gateway/oauth2/jwttoken

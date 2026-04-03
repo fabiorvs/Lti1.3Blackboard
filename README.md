@@ -59,6 +59,7 @@ lti:
   platform:
     issuer: https://blackboard.com
     client-id: ${LTI_CLIENT_ID}
+    deployment-id: ${LTI_DEPLOYMENT_ID}
     jwks-url: https://developer.blackboard.com/api/v1/management/applications/${LTI_CLIENT_ID}/jwks.json
     oidc-auth-url: https://developer.blackboard.com/api/v1/gateway/oidcauth
     access-token-url: https://developer.blackboard.com/api/v1/gateway/oauth2/jwttoken
@@ -72,6 +73,7 @@ lti:
 ```bash
 export LTI_CLIENT_ID=SEU_CLIENT_ID
 export APP_BASE_URL=https://seu-dominio
+export LTI_DEPLOYMENT_ID=SEU_DEPLOYMENT_ID
 ```
 
 ---
@@ -95,7 +97,7 @@ mvn spring-boot:run
 
 ## 👨‍💻 Autor
 
-Fabio RVS
+Fabio Roberto Vieira da Silva
 
 ---
 

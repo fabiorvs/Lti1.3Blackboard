@@ -29,7 +29,17 @@ public class LtiTokenValidationService {
 
     private static final String SESSION_STATE = "lti_state";
     private static final String SESSION_NONCE = "lti_nonce";
+
     private static final String CLAIM_NONCE = "nonce";
+    private static final String CLAIM_DEPLOYMENT_ID =
+            "https://purl.imsglobal.org/spec/lti/claim/deployment_id";
+    private static final String CLAIM_MESSAGE_TYPE =
+            "https://purl.imsglobal.org/spec/lti/claim/message_type";
+    private static final String CLAIM_VERSION =
+            "https://purl.imsglobal.org/spec/lti/claim/version";
+
+    private static final String EXPECTED_MESSAGE_TYPE = "LtiResourceLinkRequest";
+    private static final String EXPECTED_VERSION = "1.3.0";
 
     private final LtiPlatformProperties ltiPlatformProperties;
 
@@ -57,6 +67,9 @@ public class LtiTokenValidationService {
         validateAudience(claims);
         validateNonce(claims, session);
         validateTimes(claims);
+        validateDeploymentId(claims);
+        validateMessageType(claims);
+        validateVersion(claims);
 
         return claims;
     }
@@ -107,6 +120,42 @@ public class LtiTokenValidationService {
 
         if (claims.getExpirationTime().before(now)) {
             throw new LtiValidationException("Token expirado");
+        }
+    }
+
+    private void validateDeploymentId(JWTClaimsSet claims) {
+        Object deploymentId = claims.getClaim(CLAIM_DEPLOYMENT_ID);
+
+        if (deploymentId == null || String.valueOf(deploymentId).isBlank()) {
+            throw new LtiValidationException("Deployment ID não informado");
+        }
+
+        if (!String.valueOf(deploymentId).equals(ltiPlatformProperties.getDeploymentId())) {
+            throw new LtiValidationException("Deployment ID inválido");
+        }
+    }
+
+    private void validateMessageType(JWTClaimsSet claims) {
+        Object messageType = claims.getClaim(CLAIM_MESSAGE_TYPE);
+
+        if (messageType == null || String.valueOf(messageType).isBlank()) {
+            throw new LtiValidationException("Message type não informado");
+        }
+
+        if (!EXPECTED_MESSAGE_TYPE.equals(String.valueOf(messageType))) {
+            throw new LtiValidationException("Message type não suportado");
+        }
+    }
+
+    private void validateVersion(JWTClaimsSet claims) {
+        Object version = claims.getClaim(CLAIM_VERSION);
+
+        if (version == null || String.valueOf(version).isBlank()) {
+            throw new LtiValidationException("Versão LTI não informada");
+        }
+
+        if (!EXPECTED_VERSION.equals(String.valueOf(version))) {
+            throw new LtiValidationException("Versão LTI inválida");
         }
     }
 }
