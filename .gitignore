@@ -1,6 +1,5 @@
 # 📦 .gitignore (Spring Boot / Java)
 
-```gitignore
 #Compiled files
 *.class
 
@@ -45,4 +44,3 @@ node_modules/
 
 #Ngrok / arquivos locais
 *.ngrok*
-```

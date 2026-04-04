@@ -11,6 +11,9 @@ lti:
     oidc-auth-url: https://developer.blackboard.com/api/v1/gateway/oidcauth
     access-token-url: https://developer.blackboard.com/api/v1/gateway/oauth2/jwttoken
     signature-alg: RS256
+  keys:
+    private-key: ${LTI_PRIVATE_KEY}
+    key-id: minha-chave-v1
 
 app:
   base-url: ${APP_BASE_URL}
