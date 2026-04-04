@@ -33,6 +33,8 @@ Este projeto foi criado para servir como base de autenticação via **LTI 1.3**,
 
 - Login via **LTI 1.3 (OIDC)**
 - Validação do `id_token` (JWT)
+- Par de chaves RSA carregado via variável de ambiente
+- Exposição da chave pública real no endpoint **JWKS**
 - Extração de dados do usuário:
     - nome
     - email
@@ -153,11 +155,13 @@ src/main/java/br/dev/fabiorvs/lti
 │
 ├── config
 │   ├── AppProperties.java
+│   ├── LtiKeyProperties.java          ← novo
 │   ├── LtiPlatformProperties.java
 │   └── SecurityConfig.java
 │
 ├── controller
 │   ├── HomeController.java
+│   ├── JwksController.java            ← atualizado
 │   ├── LtiLoginController.java
 │   └── LtiLaunchController.java
 │
@@ -169,6 +173,7 @@ src/main/java/br/dev/fabiorvs/lti
 │   └── LtiUserResponse.java
 │
 ├── service
+│   ├── LtiKeyService.java             ← novo
 │   └── LtiTokenValidationService.java
 │
 └── LtiApplication.java
@@ -205,6 +210,14 @@ Garante que a versão do protocolo é compatível, por exemplo:
 
 - `1.3.0`
 
+### Par de chaves RSA
+
+A aplicação gera e expõe sua própria chave pública no endpoint `/.well-known/jwks.json`, necessário para integrações que exigem assinatura de tokens pela ferramenta (ex: Deep Linking, AGS).
+
+- a **chave privada** é carregada via variável de ambiente (`LTI_PRIVATE_KEY`) em formato Base64
+- a **chave pública** é derivada automaticamente da privada em memória no startup
+- o endpoint JWKS expõe a chave pública no formato JWK (RFC 7517)
+
 ---
 
 ## ⚙️ Configuração
@@ -228,14 +241,41 @@ lti:
     oidc-auth-url: https://developer.blackboard.com/api/v1/gateway/oidcauth
     access-token-url: https://developer.blackboard.com/api/v1/gateway/oauth2/jwttoken
     signature-alg: RS256
+
+  keys:
+    private-key: ${LTI_PRIVATE_KEY}
+    key-id: ${LTI_KEY_ID:minha-chave-v1}
 ```
 
 ### Variáveis de ambiente
 
 ```bash
-APP_BASE_URL=https://seu-dominio.com
+APP_BASE_URL=https://seu-dominio-ou-ngrok
 LTI_CLIENT_ID=seu-client-id
 LTI_DEPLOYMENT_ID=seu-deployment-id
+LTI_PRIVATE_KEY=LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t...   # chave privada RSA em Base64
+LTI_KEY_ID=minha-chave-v1                                  # opcional, tem valor padrão
+```
+
+### Gerando o par de chaves RSA
+
+```bash
+# Gera a chave privada RSA 2048 bits
+openssl genrsa -out lti-private.pem 2048
+
+# Extrai a chave pública (usar para cadastro no Blackboard)
+openssl rsa -in lti-private.pem -pubout -out lti-public.pem
+
+# Converte a chave privada para Base64 single-line (usar na variável de ambiente)
+base64 -w 0 lti-private.pem
+```
+
+> ⚠️ Nunca commite os arquivos `.pem` ou `.env` no repositório. Adicione-os ao `.gitignore`.
+
+```gitignore
+*.pem
+*.key
+.env
 ```
 
 ---
@@ -245,6 +285,7 @@ LTI_DEPLOYMENT_ID=seu-deployment-id
 | Método | Endpoint | Descrição |
 |---|---|---|
 | GET | `/` | health check simples |
+| GET | `/.well-known/jwks.json` | chave pública RSA da aplicação (JWK) |
 | GET | `/lti/login` | inicia o fluxo LTI/OIDC |
 | POST | `/lti/launch` | recebe o launch do Blackboard |
 | GET | `/me` | retorna dados do usuário autenticado |
@@ -263,6 +304,15 @@ Recebe o launch, valida o token, monta o usuário e salva dados na sessão.
 
 ### `LtiTokenValidationService`
 Centraliza a validação de segurança do token LTI.
+
+### `LtiKeyService`
+Carrega a chave privada RSA via variável de ambiente (Base64) e deriva a chave pública em memória no startup da aplicação.
+
+### `LtiKeyProperties`
+Mapeia as propriedades `lti.keys.*` do `application.yml` para injeção tipada.
+
+### `JwksController`
+Expõe a chave pública RSA real da aplicação no endpoint `/.well-known/jwks.json` no formato JWK, consumido pelo Blackboard para verificar tokens assinados pela ferramenta.
 
 ### `HomeController`
 Expõe endpoints simples para retorno dos dados autenticados.
@@ -289,6 +339,7 @@ Centraliza o tratamento de erros e padroniza respostas da API.
 - arquitetura simples e modular
 - validação centralizada
 - configuração por variáveis de ambiente
+- chave RSA carregada de forma segura sem persistência em disco
 - base pronta para evolução futura
 
 ---
@@ -323,9 +374,23 @@ Centraliza o tratamento de erros e padroniza respostas da API.
 export APP_BASE_URL=https://seu-dominio-ou-ngrok
 export LTI_CLIENT_ID=seu-client-id
 export LTI_DEPLOYMENT_ID=seu-deployment-id
+export LTI_PRIVATE_KEY=$(base64 -w 0 lti-private.pem)
 
 mvn spring-boot:run
 ```
+
+### Usando arquivo `.env` (recomendado para desenvolvimento)
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+APP_BASE_URL=https://seu-dominio-ou-ngrok
+LTI_CLIENT_ID=seu-client-id
+LTI_DEPLOYMENT_ID=seu-deployment-id
+LTI_PRIVATE_KEY=LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t...
+```
+
+No IntelliJ, aponte para esse arquivo em **Run > Edit Configurations > Environment variables**.
 
 ### Exposição com ngrok
 
@@ -345,11 +410,13 @@ Preencha os campos da ferramenta com URLs da sua aplicação:
 | Tool Redirect URL(s) | `https://SEU_DOMINIO/lti/launch` |
 | Tool JWKS URL | `https://SEU_DOMINIO/.well-known/jwks.json` |
 
+> A **Tool JWKS URL** agora expõe a chave pública RSA real gerada pela aplicação.
+
 ---
 
 ## 📌 Resumo
 
-Esta aplicação já implementa uma base sólida para autenticação **LTI 1.3 com Blackboard**, com validação de segurança do token, extração de dados do usuário e arquitetura preparada para evolução.
+Esta aplicação já implementa uma base sólida para autenticação **LTI 1.3 com Blackboard**, com validação de segurança do token, extração de dados do usuário, exposição de chave pública RSA via JWKS e arquitetura preparada para evolução.
 
 Ela pode ser usada como ponto de partida para substituir logins tradicionais por autenticação via Blackboard em aplicações internas.
 
